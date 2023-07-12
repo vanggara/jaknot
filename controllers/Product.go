@@ -44,8 +44,12 @@ type RequestJaknot struct {
 
 func CreateUpdateProduct(c *gin.Context) {
 	product_source := GetAllProductSource()
-	var result = ""
+	count := 0
 	for i := 0; i < len(product_source); i++ {
+		var images2 = ""
+		var images3 = ""
+		var images4 = ""
+		var images5 = ""
 		slugParam := product_source[i].Slug
 		response, err := GetExternalAPI(slugParam)
 		if err != nil {
@@ -69,11 +73,25 @@ func CreateUpdateProduct(c *gin.Context) {
 			sku := skus.(map[string]interface{})["id"].(string)
 			slug := skus.(map[string]interface{})["slug"].(string)
 			images := skus.(map[string]interface{})["images"]
+			if images.([]interface{})[0] == nil {
+				continue
+			}
 			images1 := images.([]interface{})[0].(map[string]interface{})["large"].(string)
-			images2 := images.([]interface{})[1].(map[string]interface{})["large"].(string)
-			images3 := images.([]interface{})[2].(map[string]interface{})["large"].(string)
-			images4 := images.([]interface{})[3].(map[string]interface{})["large"].(string)
-			images5 := images.([]interface{})[4].(map[string]interface{})["large"].(string)
+			if images.([]interface{})[1] != nil {
+				images2 = images.([]interface{})[1].(map[string]interface{})["large"].(string)
+			}
+			if images.([]interface{})[2] != nil {
+				images3 = images.([]interface{})[2].(map[string]interface{})["large"].(string)
+			}
+			if count > 160 {
+				fmt.Print(count)
+			}
+			if images.([]interface{})[3] != nil {
+				images4 = images.([]interface{})[3].(map[string]interface{})["large"].(string)
+			}
+			if len(images.([]interface{})) > 4 && images.([]interface{})[4] != nil {
+				images5 = images.([]interface{})[4].(map[string]interface{})["large"].(string)
+			}
 			price := skus.(map[string]interface{})["prices"].([]interface{})[0].(map[string]interface{})["top"].(float64) + 13000
 			stock := skus.(map[string]interface{})["stocks"].([]interface{})[9].(map[string]interface{})["stockRemaining"]
 			location := skus.(map[string]interface{})["stocks"].([]interface{})[9].(map[string]interface{})["name"].(string)
@@ -83,13 +101,11 @@ func CreateUpdateProduct(c *gin.Context) {
 			}
 			isAvailable := stock.(float64) > 0
 
-			// fmt.Println(sku)
 			product := models.Product{Name: name, Weight: int32(weight), Detail: detail, UrlVideo: urlVideo,
 				Brand: brand, BoxItem: boxItem, SKU: sku, Slug: slug, Image1: images1, Image2: images2,
 				Image3: images3, Image4: images4, Image5: images5, Location: location, Prices: price,
 				Stock: int64(stock.(float64)), IsAvailable: isAvailable}
 			result := models.DB.First(&product, "sku = ?", &sku)
-			fmt.Println(result)
 			if result.RowsAffected > 0 {
 				product.Prices = price
 				product.Stock = int64(stock.(float64))
@@ -98,9 +114,10 @@ func CreateUpdateProduct(c *gin.Context) {
 			} else {
 				models.DB.Create(&product)
 			}
+			count++
 		}
-		c.JSON(http.StatusOK, gin.H{"data": result})
 	}
+	c.JSON(http.StatusOK, gin.H{"data": count})
 }
 
 func GetExternalAPI(slug string) ([]byte, error) {
