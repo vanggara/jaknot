@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"main/models"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
@@ -237,7 +240,43 @@ func ExportDataInsert(c *gin.Context) {
 	}
 	// Set active sheet of the workbook.
 	// Save xlsx file by the given path.
-	if err := f.SaveAs("Jaknot_" + time.Now().Format("01-02-2006") + ".xlsx"); err != nil {
+	if err := f.SaveAs("File/Jaknot_" + time.Now().Format("01-02-2006") + ".xlsx"); err != nil {
 		println(err.Error())
 	}
+	println(f.Path)
+}
+
+func downloadFile(fullURLFile string) {
+	// Build fileName from fullPath
+	fileURL, err := url.Parse(fullURLFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	path := fileURL.Path
+	segments := strings.Split(path, "/")
+	fileName := segments[len(segments)-1]
+
+	// Create blank file
+	file, err := os.Create(fileName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	client := http.Client{
+		CheckRedirect: func(r *http.Request, via []*http.Request) error {
+			r.URL.Opaque = r.URL.Path
+			return nil
+		},
+	}
+	// Put content on file
+	resp, err := client.Get(fullURLFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	size, err := io.Copy(file, resp.Body)
+
+	defer file.Close()
+
+	fmt.Printf("Downloaded a file %s with size %d", fileName, size)
 }
